@@ -5,18 +5,20 @@ import { setupVite, serveStatic, log } from "./vite";
 const app = express();
 
 // Extend IncomingMessage to store rawBody
-declare module 'http' {
+declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
   }
 }
 
 // Middleware to parse JSON and URL-encoded data
-app.use(express.json({
-  verify: (req, _res, buf) => {
-    req.rawBody = buf;
-  }
-}));
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: false }));
 
 // Logging middleware
@@ -55,24 +57,24 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     res.status(status).json({ message });
-    throw err;
   });
 
-  // Setup Vite only in development
-  if (app.get("env") === "development") {
+  // Development: use Vite for HMR
+  if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {
+    // Production: serve built static files
     serveStatic(app);
   }
 
-  // Only start listening in **development**
-  if (app.get("env") === "development") {
-    const port = parseInt(process.env.PORT || '5001', 10);
+  // DO NOT manually call server.listen() in production
+  // Only start listening in local development
+  if (process.env.NODE_ENV === "development") {
+    const port = parseInt(process.env.PORT || "5001", 10);
     server.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
       log(`serving on port ${port}`);
     });
   }
 })();
 
-// Export the app for Vercel serverless function
 export default app;
